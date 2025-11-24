@@ -19,9 +19,9 @@ env/
 ENV/
 env.bak/
 venv.bak/
-proto5/
+/proto5
 
-# Environment / secrets (keep real values local, commit only templates like .env.example)
+# Environment / secrets
 .env
 .env.*
 
@@ -71,7 +71,7 @@ logs/
 # Project-specific: data, models, embeddings, vector stores, caches
 # -----------------------------------------------------------------------------
 
-# Local datasets and documents (keep samples or synthetic examples in a separate folder if needed)
+# Local datasets and documents
 data/raw/
 data/local/
 data/documents/
@@ -104,12 +104,12 @@ artifacts/
 .streamlit/
 **/.streamlit/
 
-# SQLite and other local DBs
+# Local DBs
 *.sqlite
 *.sqlite3
 *.db
 
-# Generic temporary folders
+# Temporary folders
 tmp/
 tmp_*/
 temp/

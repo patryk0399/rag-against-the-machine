@@ -1,0 +1,119 @@
+from __future__ import annotations
+
+"""Index-building tools for context layer.
+
+This builds a local vector index from documents. 
+Note: belongs to the "context layer" in the framework: it turns data-layer RawDocument objects into
+chunked and embedded representations stored in the vector store.
+"""
+
+from pathlib import Path
+from typing import Dict, List, Sequence, Tuple
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from data.loading import RawDocument, load_raw_text_documents
+from src.config import AppConfig, load_config
+
+
+def _build_text_chunks(
+    docs: Sequence[RawDocument],
+    # parameters just for debugging now if nothing is given to the function
+    chunk_size: int = 1000, 
+    chunk_overlap: int = 200,
+) -> Tuple[List[str], List[Dict[str, str]]]:
+    """Split documents into smaller text chunks with metadata.
+
+    Parameters
+    ----------
+    docs:
+        RawDocument instances loaded from the data layer.
+    chunk_size:
+        (Approximate ) maximum number of characters per chunk.
+    chunk_overlap:
+        Number of characters of overlap between consecutive chunks.
+
+    Returns
+    -------
+    texts:
+        List of chunk strings.
+    metadatas:
+        List of metadata dicts aligned with texts.
+    """
+    if not docs:
+        print("[index] No documents provided for chunking.")
+        return [], []
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+    )
+
+    texts: List[str] = []
+    metadatas: List[Dict[str, str]] = []
+
+    for doc in docs:
+        chunks = splitter.split_text(doc.content)
+        if not chunks:
+            continue
+
+        for i, chunk in enumerate(chunks):
+            texts.append(chunk)
+            metadatas.append(
+                {
+                    "source": str(doc.path),
+                    "title": doc.title,
+                    "chunk_index": str(i),
+                }
+            )
+
+    print(f"[index] Created {len(texts)} chunks from {len(docs)} documents.")
+    return texts, metadatas
+
+
+def build_index(cfg: AppConfig) -> None:
+    """Build a FAISS(for now for testing) index from raw text documents.
+
+    This function reads documents from data/docs/, splits them into chunks,
+    embeds them using a local HuggingFace sentence-transformer model (for now, may change later), and
+    stores the resulting index under data/index/faiss/.
+    """
+    docs_root = Path(cfg.data_dir) / "docs"
+    index_root = Path(cfg.data_dir) / "index" / "faiss"
+
+    print("[index] Using docs root:", docs_root)
+    print("[index] Using index root:", index_root)
+
+    raw_docs = load_raw_text_documents(docs_root)
+    if not raw_docs:
+        print("[index] No documents found. Nothing to index.")
+        return
+
+    texts, metadatas = _build_text_chunks(raw_docs)
+    if not texts:
+        print("[index] No chunks produced from documents. Nothing to index.")
+        return
+
+    print("[index] Initialising embeddings with model:", cfg.embedding_model_name)
+    embeddings = HuggingFaceEmbeddings(model_name=cfg.embedding_model_name)
+
+    print("[index] Building FAISS index from text chunks...")
+    vector_store = FAISS.from_texts(texts=texts, embedding=embeddings, metadatas=metadatas)
+
+    index_root.mkdir(parents=True, exist_ok=True)
+    print("[index] Saving FAISS index to:", index_root)
+    vector_store.save_local(str(index_root))
+
+    print("[index] Index build completed successfully.")
+
+
+def main() -> None:
+    """CLI entrypoint for building the index (qucik debugging)."""
+    cfg = load_config()
+    build_index(cfg)
+
+
+if __name__ == "__main__":
+    main()

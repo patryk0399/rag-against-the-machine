@@ -18,14 +18,13 @@ from pydantic import BaseModel, ValidationError
 
 class AppConfig(BaseModel):
     """Typed application configuration.
-
-    Fields are intentionally small and generic in Iteration 0C.
-    Later iterations may extend this model, but existing fields
-    should remain stable.
+        Define existing fields + defaults/fallbacks.
+        Will be used by all modules to handle paths, variables, etc.
     """
 
     env: Literal["dev", "prod"] = "dev"
     data_dir: Path = Path("data")
+    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     llm_backend: str = "dummy"
 
@@ -41,11 +40,15 @@ def load_config() -> AppConfig:
 
     # Collect raw values from environment with explicit defaults.
     raw_config = {
-        "env": os.getenv("ENV", "dev"),
-        "data_dir": os.getenv("DATA_DIR", "data"),
-        "log_level": os.getenv("LOG_LEVEL", "INFO"),
-        "llm_backend": os.getenv("LLM_BACKEND", "dummy"),
-    }
+    "env": os.getenv("ENV", "dev"),
+    "data_dir": os.getenv("DATA_DIR", "data"),
+    "log_level": os.getenv("LOG_LEVEL", "INFO"),
+    "llm_backend": os.getenv("LLM_BACKEND", "dummy"),
+    "embedding_model_name": os.getenv(
+        "EMBEDDING_MODEL_NAME",
+        "sentence-transformers/all-MiniLM-L6-v2",
+    ),
+}
 
     try:
         config = AppConfig(**raw_config)
