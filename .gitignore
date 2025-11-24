@@ -72,7 +72,7 @@ logs/
 # -----------------------------------------------------------------------------
 
 # Local datasets and documents
-data/raw/
+data/docs/
 data/local/
 data/documents/
 data/tmp/
@@ -114,3 +114,4 @@ tmp/
 tmp_*/
 temp/
 debug.py
+.env
