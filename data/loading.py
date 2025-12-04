@@ -91,7 +91,7 @@ def _ocr_pdf_to_text(pdf_path: Path, reader: easyocr.Reader) -> str:
     """
 
     try:
-        images = convert_from_path(str(pdf_path))
+        images = convert_from_path(str(pdf_path), dpi = 200)
     except Exception as exc:  # pragma: no cover - defensive logging branch
         print(f"[data] Error converting PDF to images: {pdf_path}: {exc}")
         return ""
@@ -112,7 +112,7 @@ def _ocr_pdf_to_text(pdf_path: Path, reader: easyocr.Reader) -> str:
 def load_scanned_pdf_documents(root: Path) -> List[RawDocument]:
     """Load all .pdf documents from a directory using OCR.
 
-    For scanned PDFs uses EasyOCR on rendered page instead of 
+    For scanned PDFs use EasyOCR on rendered page instead of 
     text extraction via parsing.
 
     Parameters
@@ -124,7 +124,7 @@ def load_scanned_pdf_documents(root: Path) -> List[RawDocument]:
     -------
     List[RawDocument]
         List of loaded PDF documents with OCR text content. If the
-        directory does not exist, an empty list is returned.
+        directory does not exist an empty list is returned.
     """
 
     if not root.exists():

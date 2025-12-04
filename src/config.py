@@ -33,6 +33,10 @@ class AppConfig(BaseModel):
     llm_n_gpu_layers: int = 10      #  0=CPU only, >0=some layers on GPU
     llm_n_threads: int = 4          #  threading hint
     max_messages: int = 20          #  max number of displayed messages (not used for context)
+    
+    llm_n_batch: int = 8
+    llm_use_mmap: bool = False
+    llm_use_mlock: bool = False
     #todo  prompt limit for context / "short-term-memory"
 
 
@@ -50,6 +54,15 @@ def load_config() -> AppConfig:
         "data_dir": os.getenv("DATA_DIR", "data"),
         "log_level": os.getenv("LOG_LEVEL", "INFO"),
         "llm_backend": os.getenv("LLM_BACKEND", "dummy"),
+        "llm_context_window": os.getenv("LLM_CONTEXT_WINDOW", 2048),
+        "llm_n_gpu_layers": os.getenv("LLM_N_GPU_LAYERS", 10),
+        "llm_n_threads": os.getenv("LLM_N_THREADS", 4),
+        
+        "llm_n_batch": os.getenv("LLM_N_BATCH", 64),
+        "llm_use_mmap": os.getenv("LLM_USE_MMAP", False),
+        "llm_use_mlock": os.getenv("LLM_USE_MLOCK", False),
+        
+        "llm_max_messages": os.getenv("LLM_MAX_MESSAGES", 20),
         "embedding_model_name": os.getenv(
             "EMBEDDING_MODEL_NAME",
             "sentence-transformers/all-MiniLM-L6-v2",

@@ -106,6 +106,9 @@ def _build_llama_cpp_llm(cfg: AppConfig) -> BaseLanguageModel:
         n_ctx=cfg.llm_context_window,
         n_gpu_layers=cfg.llm_n_gpu_layers,
         n_threads=cfg.llm_n_threads,
+        n_batch = cfg.llm_n_batch,
+        use_mmap = cfg.llm_use_mmap,
+        use_mlock = cfg.llm_use_mlock
         #todo: generation behaviour here later (temperature, top_p etc.)
     )
 
