@@ -29,7 +29,8 @@ class AppConfig(BaseModel):
     llm_backend: str = "llama_cpp"
     #NOTE: for llama.cpp specific (fir now)
     # llm_model_path: Path = Path("models") / "llamacpp" / "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
-    llm_model_path: Path = Path("models") / "llamacpp" / "mistral-7b-instruct-v0.2.Q8_0.gguf"
+    # llm_model_path: Path = Path("models") / "llamacpp" / "mistral-7b-instruct-v0.2.Q8_0.gguf"
+    llm_model_path: Path = Path("models") / "llamacpp" / "Llama-3-SauerkrautLM-8b-Instruct-Q4_K_L.gguf"
     llm_context_window: int = 2048
     llm_n_gpu_layers: int = 10      #  0=CPU only, >0=some layers on GPU
     llm_n_threads: int = 4          #  threading hint

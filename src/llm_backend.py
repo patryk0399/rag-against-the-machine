@@ -119,6 +119,7 @@ def _register_default_backends() -> None:
 #     register_llm_backend("dummy", _build_dummy_llm)
 #     register_llm_backend("human", _build_human_llm)
       register_llm_backend("llama_cpp", _build_llama_cpp_llm)
+      
 
 # Registering backends at import-time so get_local_llm() can be used immediately
 _register_default_backends()

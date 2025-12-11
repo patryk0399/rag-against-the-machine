@@ -103,14 +103,26 @@ def _build_rag_prompt(query: str, docs: List[Document]) -> str:
 
     context_text = "\n\n".join(context_blocks)
     print("[query]------------------------------------\n", context_text)
-    prompt = ( 
-        "Use the context below to answer the question. If the answer is not clearly contained in the context, say that you do not know.\n\n"
-        f"Context:\n{context_text}\n\n"  
-        f"Question: {query}\n\n" 
-        "Answer:" 
-    )
+    system_prompt = """\
+        Du bist ein hilfreicher Assistent.
+        Nutze den folgenden Kontext, um die Frage zu beantworten.
+        Wenn die Antwort nicht klar im Kontext vorhanden ist, sag: "Ich weiß es nicht."
+        Antworte ausschließlich auf Deutsch.
+        """
 
-    return prompt
+    user_prompt = f"""\
+        Kontext:
+        {context_text}
+
+        Frage:
+        {query}
+        """
+
+    llm_prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+        {system_prompt}<|eot_id|><|start_header_id|>user<|end_header_id|>
+        {user_prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+
+    return llm_prompt
 
 
 def answer(
