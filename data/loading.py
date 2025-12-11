@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List
 
 import numpy as np
-from pdf2image import convert_from_path
+import pymupdf 
 import easyocr
 
 
@@ -110,10 +110,10 @@ def _ocr_pdf_to_text(pdf_path: Path, reader: easyocr.Reader) -> str:
 
 
 def load_scanned_pdf_documents(root: Path) -> List[RawDocument]:
-    """Load all .pdf documents from a directory using OCR.
+    """Load all .pdf documents from a directory using pymupdf.
 
-    For scanned PDFs use EasyOCR on rendered page instead of 
-    text extraction via parsing.
+    (For scanned PDFs use EasyOCR on rendered page instead of 
+    text extraction via parsing).
 
     Parameters
     ----------
@@ -123,7 +123,7 @@ def load_scanned_pdf_documents(root: Path) -> List[RawDocument]:
     Returns
     -------
     List[RawDocument]
-        List of loaded PDF documents with OCR text content. If the
+        List of loaded PDF documents with pymupdf text content. If the
         directory does not exist an empty list is returned.
     """
 
@@ -136,15 +136,31 @@ def load_scanned_pdf_documents(root: Path) -> List[RawDocument]:
         print(f"[data] No PDF documents found under: {root}")
         return []
 
-    reader = _create_ocr_reader()
     docs: List[RawDocument] = []
 
     for path in pdf_paths:
-        print(f"[data] Loading PDF via OCR: {path}")
-        content = _ocr_pdf_to_text(path, reader)
+        print(f"[data] Loading PDF via PyMuPDF: {path}")
+
+        try:
+            doc = pymupdf.open(str(path))
+        except Exception as exc:  # pragma: no cover - defensive logging branch
+            print(f"[data] Error opening PDF with PyMuPDF: {path}: {exc}")
+            continue
+
+        page_texts: list[str] = []
+
+        for page_number, page in enumerate(doc, start=1):
+            print(f"[data] Reading page {page_number} of {path.name}")
+            text = page.get_text()
+            if text and text.strip():
+                page_texts.append(text)
+
+        doc.close()
+
+        content = "\n\n".join(page_texts)
 
         if not content.strip():
-            print(f"[data] No OCR text extracted for PDF, skipping: {path}")
+            print(f"[data] No text extracted for PDF, skipping: {path}")
             continue
 
         title = path.stem.replace("_", " ").replace("-", " ").strip()
