@@ -72,7 +72,7 @@ logs/
 # -----------------------------------------------------------------------------
 
 # Local datasets and documents
-data/docs/
+data/docs/*
 data/local/
 data/documents/
 data/tmp/
@@ -89,7 +89,7 @@ data/chroma/
 *.index
 
 # Model weights / checkpoints / artifacts
-models/
+models/llamacpp/*
 checkpoints/
 artifacts/
 *.bin

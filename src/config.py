@@ -26,9 +26,10 @@ class AppConfig(BaseModel):
     data_dir: Path = Path("data")
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    llm_backend: str = "llamacpp"
+    llm_backend: str = "llama_cpp"
     #NOTE: for llama.cpp specific (fir now)
-    llm_model_path: Path = Path("models") / "llamacpp" / "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+    # llm_model_path: Path = Path("models") / "llamacpp" / "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+    llm_model_path: Path = Path("models") / "llamacpp" / "mistral-7b-instruct-v0.2.Q8_0.gguf"
     llm_context_window: int = 2048
     llm_n_gpu_layers: int = 10      #  0=CPU only, >0=some layers on GPU
     llm_n_threads: int = 4          #  threading hint
@@ -37,6 +38,7 @@ class AppConfig(BaseModel):
     llm_n_batch: int = 8
     llm_use_mmap: bool = False
     llm_use_mlock: bool = False
+    
     #todo  prompt limit for context / "short-term-memory"
 
 
@@ -48,43 +50,32 @@ def load_config() -> AppConfig:
     """
     # Load .env from the current working directory if present.
     load_dotenv(override=True)
+    defaults = AppConfig()
 
     raw_config = {
-        "env": os.getenv("ENV", "dev"),
-        "data_dir": os.getenv("DATA_DIR", "data"),
-        "log_level": os.getenv("LOG_LEVEL", "INFO"),
-        "llm_backend": os.getenv("LLM_BACKEND", "dummy"),
-        "llm_context_window": os.getenv("LLM_CONTEXT_WINDOW", 2048),
-        "llm_n_gpu_layers": os.getenv("LLM_N_GPU_LAYERS", 10),
-        "llm_n_threads": os.getenv("LLM_N_THREADS", 4),
-        
-        "llm_n_batch": os.getenv("LLM_N_BATCH", 64),
-        "llm_use_mmap": os.getenv("LLM_USE_MMAP", False),
-        "llm_use_mlock": os.getenv("LLM_USE_MLOCK", False),
-        
-        "llm_max_messages": os.getenv("LLM_MAX_MESSAGES", 20),
+        "env": os.getenv("ENV", defaults.env),
+        "data_dir": os.getenv("DATA_DIR", str(defaults.data_dir)),
+        "log_level": os.getenv("LOG_LEVEL", defaults.log_level),
         "embedding_model_name": os.getenv(
             "EMBEDDING_MODEL_NAME",
-            "sentence-transformers/all-MiniLM-L6-v2",
+            defaults.embedding_model_name,
         ),
+        "llm_backend": os.getenv("LLM_BACKEND", defaults.llm_backend),
+        "llm_model_path": os.getenv("LLM_MODEL_PATH", str(defaults.llm_model_path)),
+        "llm_context_window": int(
+            os.getenv("LLM_CONTEXT_WINDOW", str(defaults.llm_context_window))
+        ),
+        "llm_n_gpu_layers": int(
+            os.getenv("LLM_N_GPU_LAYERS", str(defaults.llm_n_gpu_layers))
+        ),
+        "llm_n_threads": int(os.getenv("LLM_N_THREADS", str(defaults.llm_n_threads))),
+        "llm_n_batch": int(os.getenv("LLM_N_BATCH", str(defaults.llm_n_batch))),
+        "llm_use_mmap": os.getenv("LLM_USE_MMAP", str(defaults.llm_use_mmap)).lower()
+        in {"1", "true", "yes", "on"},
+        "llm_use_mlock": os.getenv("LLM_USE_MLOCK", str(defaults.llm_use_mlock)).lower()
+        in {"1", "true", "yes", "on"},
+        "max_messages": int(os.getenv("MAX_MESSAGES", str(defaults.max_messages))),
     }
-
-    # If no values are set in .env use raw_config
-    llm_model_path_env = os.getenv("LLM_MODEL_PATH")
-    if llm_model_path_env is not None:
-        raw_config["llm_model_path"] = llm_model_path_env
-
-    llm_context_window_env = os.getenv("LLM_CONTEXT_WINDOW")
-    if llm_context_window_env is not None:
-        raw_config["llm_context_window"] = int(llm_context_window_env)
-
-    llm_n_gpu_layers_env = os.getenv("LLM_N_GPU_LAYERS")
-    if llm_n_gpu_layers_env is not None:
-        raw_config["llm_n_gpu_layers"] = int(llm_n_gpu_layers_env)
-
-    llm_n_threads_env = os.getenv("LLM_N_THREADS")
-    if llm_n_threads_env is not None:
-        raw_config["llm_n_threads"] = int(llm_n_threads_env)
 
     try:
         config = AppConfig(**raw_config)
