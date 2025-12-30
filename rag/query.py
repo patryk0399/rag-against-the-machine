@@ -52,8 +52,8 @@ def _load_vector_store(cfg: AppConfig) -> FAISS:
 
 def retrieve(
     query: str,
-    k: int = 3,
-    cfg: Optional[AppConfig] = None,
+   # k: int = 3,
+   # cfg: Optional[AppConfig] = None,
 ) -> List[Document]:
     """Retrieve the top-k documents for an user query.
 
@@ -71,9 +71,10 @@ def retrieve(
     List[Document]
         Retrieved LangChain Document objects with metadata and content.
     """
-    if cfg is None:
-        cfg = load_config()
-        print("[query] Loaded AppConfig from environment.")
+   # if cfg is None:
+    k = 3
+    cfg = load_config()
+    print("[query] Loaded AppConfig from environment.")
 
     print(f"[query] Retrieving top-{k} chunks for query:")
     print("        ", repr(query))
@@ -82,14 +83,27 @@ def retrieve(
     vector_store = _load_vector_store(cfg)
     docs = vector_store.similarity_search(query, k=k)
 
-    print(f"[query] Retrieved {len(docs)} chunk(s).")
-    for i, d in enumerate(docs, start=1):
-        source = d.metadata.get("source", "<unknown>")
-        title = d.metadata.get("title", "<no title>")
-        chunk_index = d.metadata.get("chunk_index", "?")
-        print(f"[query]  [{i}] source={source} title={title} chunk_index={chunk_index}")
+    # ----------------
+    context_blocks: list[str] = []  
+    for i, d in enumerate(docs, start=1): 
+        source = d.metadata.get("source", "<unknown>")  
+        #chunk_index = d.metadata.get("chunk_index", "?")
+        header = f"[{i}]" # Source: {source}"
+        context_blocks.append(f"{header}\n{d.page_content}")
 
-    return docs
+    context_text = "\n\n".join(context_blocks)
+    print("---------------------- context text: ", context_text)
+    return context_text
+    # ---------------- tmp block for structured output to ToolMessage content for LLM downstream tasks
+    # ---------------- original code block (comment-in for CLI interaction):
+    # print(f"[query] Retrieved {len(docs)} chunk(s).")
+    # for i, d in enumerate(docs, start=1):
+    #     source = d.metadata.get("source", "<unknown>")
+    #     title = d.metadata.get("title", "<no title>")
+    #     chunk_index = d.metadata.get("chunk_index", "?")
+    #     print(f"[query]  [{i}] source={source} title={title} chunk_index={chunk_index}")
+
+    # return docs
 
 
 def _build_rag_prompt(query: str, docs: List[Document]) -> str:
@@ -128,7 +142,7 @@ def _build_rag_prompt(query: str, docs: List[Document]) -> str:
 def answer(
     query: str,
     k: int = 3,
-    cfg: Optional[AppConfig] = None,
+    #cfg: Optional[AppConfig] = None,
 ) -> str:
     """Answer user prompt using RAG with the configured LLM backend.
 
@@ -153,11 +167,11 @@ def answer(
     str
         The answer produced by the selected LLM backend.
     """
-    if cfg is None:
-        cfg = load_config()
-        print("[query] Loaded AppConfig from environment.")
+    #if cfg is None:
+    cfg = load_config()
+    print("[query] Loaded AppConfig from environment.")
 
-    print("[query] Using LLM backend:", cfg.llm_backend)
+    print("[query] Using LLM backend:")#, cfg.llm_backend)
     docs = retrieve(query=query, k=k, cfg=cfg)
 
     if not docs:
@@ -203,5 +217,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main() 
-
 

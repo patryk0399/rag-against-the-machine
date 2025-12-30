@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from typing_extensions import TypedDict
 
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage, ToolMessage
 from langchain_core.tools import tool
 
 from langgraph.graph import StateGraph, START, END
@@ -19,6 +19,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from src.config import AppConfig, load_config
 from src.llm_backend import get_local_llm
 from agents.tools import search as search_function
+from rag.query import retrieve #as rag_answer  # underlying RAG function
 
 # --- Debug helpers -----------------------------------------------------------
 DEBUG_FLOW = os.getenv("DEBUG_FLOW", "1") == "1"
@@ -35,7 +36,7 @@ def _msg_brief(msg: BaseMessage) -> str:
     if isinstance(content, str):
         snippet = content.replace("\n", " ")
         if len(snippet) > 140:
-            snippet = snippet[:140] + "…"
+            snippet = snippet[:1000] + "…"
     else:
         snippet = str(content)
     tc = getattr(msg, "tool_calls", None)
@@ -60,23 +61,24 @@ def _dump_messages(messages: list[BaseMessage], label: str = "messages") -> None
 # ---------------------------------------------------------------------------
 
 # Example embeddings + FAISS store loader (adjust to your project paths)
-embeddings = HuggingFaceEmbeddings(model_name=os.getenv("EMBEDDINGS_MODEL", "sentence-transformers/all-MiniLM-L6-v2"))
-index_root = os.getenv("FAISS_INDEX_ROOT", "./faiss_index")
+#embeddings = HuggingFaceEmbeddings(model_name=os.getenv("EMBEDDINGS_MODEL", "sentence-transformers/all-MiniLM-L6-v2"))
+#index_root = os.getenv("FAISS_INDEX_ROOT", "./faiss_index")
 
 
-@tool
-def get_vector_store(query: str, k: int = 4) -> str:
-    """Search the local FAISS vector store and return the top-k documents (as a string)."""
-    vector_store = FAISS.load_local(
-        folder_path=str(index_root),
-        embeddings=embeddings,
-        allow_dangerous_deserialization=True,
-    )
-    docs = vector_store.similarity_search(query, k=k)
-    return "\n\n".join([f"[doc{i}] {d.page_content}" for i, d in enumerate(docs)])
+# @tool
+# def get_vector_store(query: str, k: int = 4) -> str:
+#     """Search the local FAISS vector store and return the top-k documents (as a string)."""
+#     vector_store = FAISS.load_local(
+#         folder_path=str(index_root),
+#         embeddings=embeddings,
+#         allow_dangerous_deserialization=True,
+#     )
+#     docs = vector_store.similarity_search(query, k=k)
+#     return "\n\n".join([f"[doc{i}] {d.page_content}" for i, d in enumerate(docs)])
 
 
-tools = [search_function, get_vector_store]
+
+tools = [search_function, retrieve]
 tool_node = ToolNode(tools)
 
 
@@ -95,7 +97,7 @@ def _choose_forced_tool(last_user_text: str) -> str | None:
         return "search"
 
     if any(x in t for x in ["document", "docs", "context"]):
-        return "get_vector_store"
+        return "retrieve"
 
     return None
 
@@ -111,33 +113,34 @@ def chatbot_node(state: AgentState) -> AgentState:
         content=(
             "You are a helpful assistant. "
             "If a tool is forced, call it using the model's native tool-calling mechanism. "
-            "Otherwise answer normally."
+            "Otherwise answer normally or use the provided context."
         )
     )
     messages = [system, *state["messages"]]
 
-    # Decide whether to force a tool call
-    last_human = next((m for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), None)
-    forced_tool = _choose_forced_tool(last_human.content if last_human else "")
+    # Decide whether to force a tool call.
+    # IMPORTANT: only force tool_choice on the first hop (when the latest message is Human).
+    last_msg = state["messages"][-1] if state.get("messages") else None
+    forced_tool: str | None = None
+    if isinstance(last_msg, HumanMessage):
+        forced_tool = _choose_forced_tool(last_msg.content)
+
     cfg = load_config()
     llm = get_local_llm(cfg=cfg)
-    #if(len(state)>1):
 
-    last_mgstype = type(state["messages"][-1])
-    print("====================================== ", last_mgstype.__name__)
-    if (last_mgstype.__name__ =="AIMessage"):
-        print("[GET FINISH REASON BEFORE LLM.INVOKE] ", last_mgstype.response_metadata["finish_reason"])
-
-    lastIsTool = False
-    if (last_mgstype.__name__ in ["ToolMessage"]):
-       # print("====== [GET FINISH REASON BEFORE LLM.INVOKE] ", last_mgstype.response_metadata["finish_reason"])
+    last_msg = state["messages"][-1]
+    print("====================================== ", type(last_msg).__name__)
+    if isinstance(last_msg, AIMessage):
+        print("[GET FINISH REASON BEFORE LLM.INVOKE] ", last_msg.response_metadata.get("finish_reason"))
+    if isinstance(last_msg, ToolMessage):
+        print("<<<<<<<<<<LASTMSG>>>>>>>>>>>>> : ", last_msg)
         print("====== LAST IS TOOL")
-        lastIsTool = True
     else:
         print("====== LAST IS NOT (!!!) TOOL")
-        lastIstTool = False
 
-    if forced_tool and state and not lastIsTool:
+    if forced_tool and state:
+        # if lastIsTool:
+        #     messages = state["messages"][-1]
         _dbg("chatbot_node: forcing tool_choice =", forced_tool)
         # Force one tool because of ChatLlamaCpp limitations
         llm_with_tools = llm.bind_tools(
@@ -145,6 +148,10 @@ def chatbot_node(state: AgentState) -> AgentState:
             tool_choice={"type": "function", "function": {"name": forced_tool}},
         )
         response = llm_with_tools.invoke(messages)
+    elif isinstance(last_msg, ToolMessage):
+        _dbg("chatbot_node: last message is ToolMessage. Inovking LLM with messages + RAG context", forced_tool)
+        context_msg = f"User query: {messages}\n Context from retrieval: {last_msg}"
+        response = llm.invoke(context_msg)
     else:
         _dbg("chatbot_node: no tool forced; answering directly")
         response = llm.invoke(messages)
@@ -157,17 +164,14 @@ def chatbot_node(state: AgentState) -> AgentState:
     _dbg("EXIT chatbot_node")
     _dbg("llm response type=", type(response).__name__)
     _dbg("llm response tool_calls=", getattr(response, "tool_calls", None))
-    _dbg("llm response content_snippet=", (response.content or "").replace("\n", " ")[:200])
+    _dbg("llm response content_snippet=", (response.content or "").replace("\n", " ")[:1000])
     return {"messages": [response]}
 
 
 def should_continue(state: AgentState) -> Literal["tools", "end"]:
-    print("[should_continue state[messages]]: ", state["messages"])
     last = state["messages"][-1]
-    print("last: ", last)
     tc = getattr(last, "tool_calls", None)
-    print("tc: ", tc)
-    decision = "tools" if tc else "end"
+    decision = "tools" if (isinstance(last, AIMessage) and tc) else "end"
     _dbg("[should_continue:]", decision, "| last=", _msg_brief(last))
     return decision
 
@@ -193,7 +197,7 @@ def build_graph(memory):
 
 def chat_with_memory(message: str, graph, thread_id: str):
     print("[GOING INTO CHAT WITH MEMORY]")
-    config = {"configurable": {"thread_id": thread_id}}
+    config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 10}
     initial_state = {"messages": [HumanMessage(content=message)]}
 
     _dbg("chat_with_memory:", f"thread_id={thread_id}")

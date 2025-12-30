@@ -13,6 +13,8 @@ from typing import Dict, List, Sequence, Tuple
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
+# from transformers import AutoTokenizer, AutoModel
+# from sentence_transformers import SentenceTransformer
 
 from data.loading import RawDocument, load_raw_text_documents, load_scanned_pdf_documents
 from src.config import AppConfig, load_config
@@ -20,9 +22,8 @@ from src.config import AppConfig, load_config
 
 def _build_text_chunks(
     docs: Sequence[RawDocument],
-    # parameters just for debugging now if nothing is given to the function
     chunk_size: int = 1000, 
-    chunk_overlap: int = 200,
+    chunk_overlap: int = 150,
 ) -> Tuple[List[str], List[Dict[str, str]]]:
     """Split documents into smaller text chunks with metadata.
 
@@ -104,9 +105,13 @@ def build_index(cfg: AppConfig) -> None:
 
     print("[index] Initialising embeddings with model:", cfg.embedding_model_name)
     embeddings = HuggingFaceEmbeddings(model_name=cfg.embedding_model_name)
+    # NOTE: if the Embedding-Model itself DOES NOT normalise the embeddings automatically
+    # (all-MiniLM-L12-v2 has a Normalise() module), we would need to do it here before storing
+    print("[============embeddings============]", embeddings)
 
     print("[index] Building FAISS index from text chunks...")
     vector_store = FAISS.from_texts(texts=texts, embedding=embeddings, metadatas=metadatas)
+    # later replace from_texts with better implementation
 
     index_root.mkdir(parents=True, exist_ok=True)
     print("[index] Saving FAISS index to:", index_root)
@@ -118,7 +123,13 @@ def build_index(cfg: AppConfig) -> None:
 def main() -> None:
     """CLI entrypoint for building the index (qucik debugging)."""
     cfg = load_config()
+    print()
+    # print(f"[============model_max_length===================] {AutoTokenizer.from_pretrained(cfg.embedding_model_name).model_max_length}")
+    #model = SentenceTransformer(cfg.embedding_model_name)
+    # print(f"[============max_seq_length=====================] {model.max_seq_length}")
+    # print(f"[============max_position_embeddings============] {model[0].auto_model.config.max_position_embeddings}")
     build_index(cfg)
+    
 
 
 if __name__ == "__main__":
