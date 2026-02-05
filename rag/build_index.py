@@ -16,7 +16,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 # from transformers import AutoTokenizer, AutoModel
 # from sentence_transformers import SentenceTransformer
 
-from data.loading import RawDocument, load_raw_text_documents, load_scanned_pdf_documents
+from data.loading import RawDocument, load_raw_text_documents, load_scanned_pdf_documents, load_csv_documents
 from src.config import AppConfig, load_config
 
 
@@ -92,14 +92,15 @@ def build_index(cfg: AppConfig) -> None:
 
     raw_text_docs = load_raw_text_documents(docs_root)
     pdf_docs = load_scanned_pdf_documents(docs_root)
+    csv_docs = load_csv_documents(docs_root)
 
-    total_docs = len(raw_text_docs) + len(pdf_docs)
+    total_docs = len(raw_text_docs) + len(pdf_docs) + len(csv_docs)
     if total_docs == 0:
         print("[index] No documents found. Nothing to index.")
         return
 
-    print(f"[index] Loaded {len(raw_text_docs)} text documents and {len(pdf_docs)} PDF documents.")
-    raw_docs = raw_text_docs + pdf_docs
+    print(f"[index] Loaded {len(raw_text_docs)} text documents, {len(pdf_docs)} PDF documents and {len(csv_docs)} csv documents.")
+    raw_docs = raw_text_docs + pdf_docs + csv_docs
 
     texts, metadatas = _build_text_chunks(raw_docs)
     if not texts:
@@ -108,6 +109,7 @@ def build_index(cfg: AppConfig) -> None:
 
     print("[index] Initialising embeddings with model:", cfg.embedding_model_name)
     embeddings = HuggingFaceEmbeddings(model_name=cfg.embedding_model_name)
+    
     # NOTE: if the Embedding-Model itself DOES NOT normalise the embeddings automatically
     # (all-MiniLM-L12-v2 has a Normalise() module), we would need to do it here before storing
     print("[============embeddings============]", embeddings)
