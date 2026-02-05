@@ -1,6 +1,7 @@
 from agent_components import agent_chemical, agent_procedere, agent_summary, agent_ts
 from src.llm_backend import get_local_llm
 from langchain_core.documents import Document
+#from rag.query import clean_docs
 
 
 # llm = "Dummy LLM"
@@ -13,6 +14,7 @@ from langchain_core.prompts.base import format_document
 # LangChain message classes (optional but explicit)
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from src.config import load_config
+#from rag.query import clean_docs2
 
 def main() -> None:
     context = ""
@@ -39,39 +41,30 @@ def main() -> None:
     global_doc_list.append(alarm_data_example)
     user_prompt = HumanMessage(content=f"""Help me analyse the problem.""") # append user prompt later because we dont need user prompt for getting this type of data. We input give it everything we can manually and then let it work.
     global_chat_list.append(user_prompt)
-
-    doc_prompt = PromptTemplate.from_template(
-    "Source: {source}\n"
-    "Page/Section: {page}{section}\n"
-    "Chunk: {chunk}\n"
-    "{page_content}"
-    )
-
-    formatted_docs = []
-    for d in global_doc_list:
-        # If some metadata keys are missing (e.g., page/section/chunk), you can normalize upstream
-        formatted_docs.append(format_document(d, doc_prompt))
-
-    context_block = "\n\n---\n\n".join(formatted_docs)
-    print("Context: ", context_block)
-
+   
     # INPUT: User prompt for perfect query
     # INPUT2: All the data we can give it (manually) or the data we want it to analyse (from before)
-    response_procedere = agent_procedere.get_agent_output(global_chat_list, context_block, llm)
-    global_chat_list.append(response_procedere)
+    response_procedere = agent_procedere.get_agent_output(global_chat_list, global_doc_list, llm)
+    global_doc_list.append(Document(page_content = response_procedere.content, metadata={"source": "https://example.com", "page": 1, "chunk": 1, "section": 1}))
+
+    print("content?:" , response_procedere.content)
+    print("docs formatted?: ", global_doc_list)
+    #context_block.append(response_procedere.content)
 
     # # INPUT: User prompt for perfect query
     # # INPUT2: All the data we can give it (manually) or the data we want it to analyse (from before)
-    # response_chemical = agent_chemical.get_agent_output(global_chat_list, llm)
-    # global_chat_list.append(AIMessage(content=response_chemical, name = "agent_chemical"))
-
-
+    response_chemical = agent_chemical.get_agent_output(global_chat_list, global_doc_list, llm)
+    global_doc_list.append(Document(page_content = response_chemical.content, metadata={"source": "https://example.com", "page": 1, "chunk": 1, "section": 1}))
+    print("docs formatted?2: ", global_doc_list)
 
     # response = agent_summary.get_agent_output(global_chat_list, global_doc_list, llm) # <--- this already returns an AIMessage. Fix for every one above
     # # global_chat_list.append(AIMessage(content=response, name = "agent_summary"))
     # global_chat_list.append(response)
-
+    print("Messages: ")
     for x in global_chat_list:
+        print(x)
+    print("Docs: ")
+    for x in global_doc_list:
         print(x)
 
 if __name__ == "__main__":
