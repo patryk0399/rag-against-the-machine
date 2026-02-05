@@ -16,7 +16,7 @@ def get_agent_output(chat_history, global_doc_list, llm):
     system_prompt = SystemMessage(content=message)
     # print("Chat history in procedere agent: ", chat_history)
     prompt = [system_prompt] + chat_history
-    print("procedere Prompt: ", prompt)
+    print("summary Prompt: ", prompt)
     summary = llm.invoke(prompt)
     #docs = retrieve(query, 3)
     # then here we could format this further.
