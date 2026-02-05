@@ -21,19 +21,18 @@ def get_agent_output(chat_history, global_doc_list, llm):
                 Example: rectification usual problems, distillation common mishaps
                 Always only output one query.
                 Make sure the query you output matches the contents of a database with books, scientific papers, documents.
-                Queires should be short to land in the best space for retrieval.
-               
+                Queires should be short to land in the best space for retrieval.         
     """
     message = "".join(message)
     system_prompt = SystemMessage(content=message)
-    print("Chat history in chemical agent: ", chat_history)
+    # print("Chat history in chemical agent: ", chat_history)
     prompt = [system_prompt] + chat_history
     print("chemical Prompt: ", prompt)
     query = llm.invoke(prompt)
     #docs = retrieve(query, 3)
     # then here we could format this further.
     #response = "Here are some relevant documents from the procedere manuals." # = docs
-    print("agent chemical query: ", query)
+    print("Chemical Agent return: ", query)
     docs = query
     return docs
 
