@@ -18,22 +18,22 @@ from langchain_community.chat_models import ChatLlamaCpp
 from src.config import AppConfig
 from agents.prompts import GENERAL_SYSTEM_PROMPT
 
-def get_local_llm(cfg: AppConfig) -> BaseLanguageModel:
+def get_local_llm(cfg: AppConfig, model_n: int = 0) -> BaseLanguageModel:
     """Return a configured local LLM via AppConfig.
     """
-    llm = _build_chat_llama_cpp_llm(cfg)
+    llm = _build_chat_llama_cpp_llm(cfg, model_n)
     print(f"[llm] Initialising llama.cpp backend with model_path='{cfg.llm_model_path}'.")
     return llm
 
 
-def _build_chat_llama_cpp_llm(cfg: AppConfig) -> BaseLanguageModel:
+def _build_chat_llama_cpp_llm(cfg: AppConfig, model_n: int = 0) -> BaseLanguageModel:
     """Backend
     """
    
     #chat_format = getattr(cfg, "llm_chat_format", "chatml")
 
     return ChatLlamaCpp(
-        model_path=str(cfg.llm_model_path),
+        model_path=str(cfg.llm_model_path[model_n]),
         n_ctx=cfg.llm_context_window,
         n_gpu_layers=cfg.llm_n_gpu_layers,
         n_threads=cfg.llm_n_threads,
@@ -43,7 +43,7 @@ def _build_chat_llama_cpp_llm(cfg: AppConfig) -> BaseLanguageModel:
         verbose=True, #getattr(cfg, "llm_verbose", False),
     
         model_kwargs={
-            "chat_format": "chatml", #remember to adjust if needed when choosing a different model
+            "chat_format": cfg.llm_chat_format, #remember to adjust if needed when choosing a different model
             "temperature": getattr(cfg, "llm_temperature", 0.2),
             "top_p": getattr(cfg, "llm_top_p", 0.95),
         },

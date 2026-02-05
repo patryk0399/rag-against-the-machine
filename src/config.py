@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Literal
+from dataclasses import dataclass
 
 from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, computed_field
 
 
 class AppConfig(BaseModel):
@@ -18,18 +20,30 @@ class AppConfig(BaseModel):
         Define existing fields + defaults/fallbacks.
         Will be used by all modules to handle paths, variables, etc.
     """
-
+    data_dir: Path = "data"
+    # embedding_model_name: str = "BASF-AI/ChEmbed-vanilla"
+    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     # IF YOU CHANGE THE MODEL ALSO CHANGE chat_format IN llm_backend.py if needed!!!!
     # Cretain models need or only work with specific chat_format(s) !!!
-    model: str = "Hermes-3-Llama-3.2-3B.Q8_0.gguf"
+    # model: str = "mistral-7b-instruct-v0.2.Q8_0.gguf"
+    #model: str = "Hermes-3-Llama-3.2-3B.Q8_0.gguf"
+    model: list[str] = Field(default_factory=lambda: [
+        "qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf",
+        "query-expansion.Q5_K_M.gguf",
+    ])
     # model: str = "Hermes-2-Pro-Mistral-7B.Q8_0.gguf"
     # model: str = "Hermes-2-Pro-Mistral-7B.Q8_0.gguf"
     # model: str = "Llama-3-Groq-8B-Tool-Use-Q8_0.gguf"
     # model: str = "Llama-3-SauerkrautLM-8b-Instruct-Q8_0_L.gguf"
     # model: str = 
-    llm_model_path: Path = Path("models") / "llamacpp" / model
-    data_dir: Path = "data"
-    embedding_model_name: str = "sentence-transformers/all-MiniLM-L12-v2"
+    llm_chat_format: str = "chatml" #remember to adjust if needed when choosing a different model
+    model_dir: Path = Path("models") / "llamacpp" 
+    @computed_field
+    @property
+    def llm_model_path(self) -> list[Path]:
+        return [self.model_dir / name for name in self.model]
+
+    
 
     llm_context_window: int = 10004 #M
     llm_n_gpu_layers: int = 20 #HW #M            #  0=CPU only, >0=some layers on GPU
@@ -43,7 +57,6 @@ class AppConfig(BaseModel):
     retrieve_k_max: int = 5 # not used right now
     index_chunk_size: int = 1000
     index_chunk_overlap: int = 150
-
     #todo  prompt limit for context / "short-term-memory"
 
 
