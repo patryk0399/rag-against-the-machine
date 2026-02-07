@@ -4,7 +4,7 @@ import math
 from typing import Optional, TypedDict
 
 data = {
-    'A': [1, 2, 3, 4, 6],
+    'A': [0, 2, 3, 4, 6],
     'B': [5, 4, 3, 2, 1],
     'C': [2, 3, 4, 5, 6]
 }
@@ -18,7 +18,7 @@ desc.to_json("helpers/jsons/data_base.jsonl", orient="columns", indent=0)
 # for "pretty printing". 
 
 data = {
-    'A': [1, 200, 3, 4, 500],
+    'A': [0, 200, 3, 4, 500],
     'B': [5, 4, 300, 299, 1],
     'C': [2, 334, 41000, 56, 6]
 }
@@ -44,10 +44,21 @@ class Comparison(TypedDict):
 
 
 def compare_x_to_y(x: float, y: float) -> Comparison:
+    # x: new data that we compare to baseline y
+    # y: base line data
+    # compare x (new data) to y (baseline/normal)
     if y == 0:
         # avoid division by 0
-        message = "<Can't compare because y = 0.>"
-        return ValueError(message)
+        # message = "<Can't compare because y = 0.>"
+        # return ValueError(message)
+        change = y - x
+        return {
+        "zero": True,
+        "multiplier": change,
+        "percent_of_y": None,
+        "percent_change_from_y": None,
+        }
+
         
     mult = x / y
     return {
@@ -75,6 +86,22 @@ for colname1, colname2 in zip(desc1,desc2):
         else:
             print("Error")
             continue
+        # if("zero" in comparison): #TODO: later
+        #     print("y = 0")
+        #     text = f"""
+        #     For
+        #     desc1 for the {colname1} the {metric1} is {val1}
+        #     compared to
+        #     desc2 for the {colname2} the {metric2} is {val2}.
+
+        #     Comparing both, 
+        
+        #     the {metric2} of {val2} from desc2 
+        #     is {comparison["multiplier"]} {x} <larger/smaller/unchanged> than the baseline of {val1} from desc1.
+        #     The {metric2} of {val2} from desc2
+        #     is an {y} <increase/decrease> of {comparison["percent_of_y"]} compared to the baseline of {val1} from desc1.
+
+        #     The {metric2} changed by a factor of {comparison["percent_change_from_y"]} compared to the baseline of {val1} from desc1."""
 
         if(x in ["larger", "smaller"]):
             text = f"""
